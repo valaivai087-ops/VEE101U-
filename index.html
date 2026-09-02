@@ -48,6 +48,10 @@ main { max-width:1180px; margin:auto; padding:18px; }
 .lookup-title { display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:17px; font-weight:850; }
 .lookup-title span { color:var(--muted); font-size:13px; font-weight:700; }
 .footer { color:var(--muted); font-size:12px; padding:20px 0 40px; }
+.sentence-row { display:flex; align-items:flex-start; gap:10px; }
+.sentence-row > div { flex:1; }
+.sentence-speak { width:32px; height:32px; min-width:32px; }
+.mini-speak { margin-left:6px; border:0; border-radius:7px; padding:2px 6px; background:#e9f4f2; color:#166a62; cursor:pointer; font-size:11px; }
 @media (max-width: 860px) { .top { grid-template-columns:1fr; } .stats { justify-content:flex-start; } .controls { grid-template-columns:1fr; } .tabs button { flex:1; } h1 { font-size:21px; } .word { font-size:24px; } }
 </style>
 </head>
@@ -84,15 +88,15 @@ main { max-width:1180px; margin:auto; padding:18px; }
   const $ = id => document.getElementById(id);
   let mode = 'words';
   function esc(s) { return String(s || '').replace(/[&<>\"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[m])); }
-  function speak(word) { if (!('speechSynthesis' in window)) return; speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(word); u.lang = 'en-US'; u.rate = .86; speechSynthesis.speak(u); }
+  function speak(text, kind) { if (!('speechSynthesis' in window)) return; speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.lang = 'en-US'; u.rate = kind === 'sentence' ? .82 : .86; speechSynthesis.speak(u); }
   function relText(item) { return typeof item === 'string' ? item : [item.en, item.zh].filter(Boolean).join(' '); }
   function relKey(item) { return typeof item === 'string' ? item : (item.en || ''); }
-  function chipList(items) { return (items && items.length) ? items.map(x => { const en = typeof x === 'string' ? x : (x.en || ''); const zh = typeof x === 'string' ? '' : (x.zh || ''); return `<span class="chip"><b>${esc(en)}</b>${zh ? `<small>${esc(zh)}</small>` : ''}</span>`; }).join('') : `<span class="chip warn">${T.pending}</span>`; }
+  function chipList(items, speakable = true) { return (items && items.length) ? items.map(x => { const en = typeof x === 'string' ? x : (x.en || ''); const zh = typeof x === 'string' ? '' : (x.zh || ''); return `<span class="chip"><b>${esc(en)}</b>${speakable && en ? `<button type="button" class="mini-speak" title="${T.play}" data-speak="${esc(en)}">&#9654;</button>` : ''}${zh ? `<small>${esc(zh)}</small>` : ''}</span>`; }).join('') : `<span class="chip warn">${T.pending}</span>`; }
   function uniqueRelations(items) { const out = [], seen = new Set(); for (const item of items || []) { const key = relKey(item).toLowerCase(); if (!key || seen.has(key)) continue; seen.add(key); out.push(item); } return out; }
   function searchableCard(c) { return [c.word,c.ipa,c.pos,c.meaningZh,c.prefix,c.root,c.suffix,...(c.pdfExamples||[]).flatMap(e => [e.unitTitle,e.english,e.chinese]),...(c.synonyms||[]).map(relText),...(c.antonyms||[]).map(relText),...(c.similar||[]).map(relText),...(c.related||[]).map(relText)].join(' ').toLowerCase(); }
-  function cardHtml(c) { return `<article class="card"><div class="wordrow"><div><div class="word">${esc(c.word)}</div><div class="ipa">${esc(c.ipa || 'IPA pending')}</div></div><button type="button" class="icon" title="${T.play}" data-speak="${esc(c.word)}">&#9654;</button></div><span class="pos">${esc(c.pos)}</span><div class="meaning">${esc(c.meaningZh)}</div><div><div class="label">${T.roots}</div><div class="chips">${chipList([c.prefix,c.root,c.suffix].filter(Boolean))}</div></div><div><div class="label">${T.syn}</div><div class="chips">${chipList(c.synonyms || [])}</div></div><div><div class="label">${T.ant}</div><div class="chips">${chipList(c.antonyms || [])}</div></div><div><div class="label">${T.rel}</div><div class="chips">${chipList(uniqueRelations([...(c.similar||[]), ...(c.related||[])]))}</div></div><div class="section"><div class="label">${T.pdfExamples}</div>${pdfExampleList(c)}</div></article>`; }
-  function exampleHtml(e) { return `<article class="excard"><div class="unitmark">${esc(e.unitTitle)}</div><div>${esc(e.english)}</div><div class="zh">${esc(e.chinese)}</div></article>`; }
-  function pdfExampleList(c) { const exs = c.pdfExamples || []; return exs.length ? exs.map(e => `<div class="example"><div class="unitmark">${esc(e.unitTitle)}</div>${esc(e.english)}<div class="zh">${esc(e.chinese)}</div></div>`).join('') : `<div class="empty">${T.noDirectExamples}</div>`; }
+  function cardHtml(c) { return `<article class="card"><div class="wordrow"><div><div class="word">${esc(c.word)}</div><div class="ipa">${esc(c.ipa || 'IPA pending')}</div></div><button type="button" class="icon" title="${T.play}" data-speak="${esc(c.word)}">&#9654;</button></div><span class="pos">${esc(c.pos)}</span><div class="meaning">${esc(c.meaningZh)}</div><div><div class="label">${T.roots}</div><div class="chips">${chipList([c.prefix,c.root,c.suffix].filter(Boolean), false)}</div></div><div><div class="label">${T.syn}</div><div class="chips">${chipList(c.synonyms || [])}</div></div><div><div class="label">${T.ant}</div><div class="chips">${chipList(c.antonyms || [])}</div></div><div><div class="label">${T.rel}</div><div class="chips">${chipList(uniqueRelations([...(c.similar||[]), ...(c.related||[])]))}</div></div><div class="section"><div class="label">${T.pdfExamples}</div>${pdfExampleList(c)}</div></article>`; }
+  function exampleHtml(e) { return `<article class="excard"><div class="unitmark">${esc(e.unitTitle)}</div><div class="sentence-row"><div>${esc(e.english)}</div><button type="button" class="icon sentence-speak" title="播放完整句子" data-kind="sentence" data-speak="${esc(e.english)}">&#9654;</button></div><div class="zh">${esc(e.chinese)}</div></article>`; }
+  function pdfExampleList(c) { const exs = c.pdfExamples || []; return exs.length ? exs.map(e => `<div class="example"><div class="unitmark">${esc(e.unitTitle)}</div><div class="sentence-row"><div>${esc(e.english)}</div><button type="button" class="icon sentence-speak" title="播放完整句子" data-kind="sentence" data-speak="${esc(e.english)}">&#9654;</button></div><div class="zh">${esc(e.chinese)}</div></div>`).join('') : `<div class="empty">${T.noDirectExamples}</div>`; }
   function filteredCards() { const q = $('q').value.trim().toLowerCase(); const uid = $('unit').value; return DATA.cards.filter(c => (uid === 'all' || c.units.includes(Number(uid))) && (!q || searchableCard(c).includes(q))).slice(0, 420); }
   function filteredExamples() { const q = $('q').value.trim().toLowerCase(); const uid = $('unit').value; return DATA.examples.filter(e => (uid === 'all' || e.unitId === Number(uid)) && (!q || (e.english + ' ' + e.chinese + ' ' + e.unitTitle).toLowerCase().includes(q))).slice(0, 500); }
   function lookupQuery() { return $('wordLookup').value.trim().toLowerCase(); }
@@ -109,7 +113,7 @@ main { max-width:1180px; margin:auto; padding:18px; }
   $('q').oninput = render;
   $('wordLookup').oninput = render;
   $('unit').onchange = render;
-  document.addEventListener('click', e => { const btn = e.target.closest('[data-speak]'); if (btn) speak(btn.getAttribute('data-speak')); });
+  document.addEventListener('click', e => { const btn = e.target.closest('[data-speak]'); if (btn) speak(btn.getAttribute('data-speak'), btn.getAttribute('data-kind')); });
   render();
 })();
 </script>
