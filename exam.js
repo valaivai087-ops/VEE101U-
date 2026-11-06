@@ -89,6 +89,7 @@
   }
   function originalUnits(){return data.units.filter(u=>$('originalUnit').value==='all'||u.id===Number($('originalUnit').value));}
   function renderOriginal(){const units=originalUnits();const total=units.reduce((n,u)=>n+u.examples.length,0);$('originalCount').textContent=`完整顯示 ${units.length} 個單元 · ${total} 筆原題文字 · ${units.reduce((n,u)=>n+u.words.length,0)} 筆單元單字（含跨單元重複）`;$('originalIndex').innerHTML=units.map(u=>`<a href="#original-unit-${u.id}">${esc(u.title)}</a>`).join('');$('originalContent').innerHTML=units.map(u=>`<article class="original-unit" id="original-unit-${u.id}"><h2>${esc(u.title)}</h2><p class="exam-muted">全書單元編號 ${u.id} · ${u.words.length} 個單字 · ${u.examples.length} 筆原題文字</p><h3>原單元單字清單</h3><div class="original-wordbank">${u.words.map(w=>`<span>${esc(w)}</span>`).join('')}</div><h3>原始考卷題目</h3><p class="original-name">姓名：________________　班級：________________　日期：________________</p><ol class="original-questions">${u.examples.map((q,i)=>`<li><div class="original-english">${esc(q)}</div><div class="exam-actions exam-no-print"><button type="button" data-kind="sentence" data-speak="${esc(originalSpeech(q))}" aria-label="朗讀 ${esc(u.title)} 第 ${i+1} 題英文">▶ 英文朗讀</button></div><div class="original-translation" lang="zh-Hant"><strong>中文翻譯：</strong>${esc(originalZh(u,i))}</div><div class="original-answer">作答：________________________________</div></li>`).join('')}</ol></article>`).join('');}
+  originalTab.textContent='中英對照・65 單元';
   originalTab.onclick=()=>showOriginal();
   let originalUtterance=null;
   original.addEventListener('click',e=>{const b=e.target.closest('[data-speak]');if(!b)return;e.stopPropagation();if(!('speechSynthesis' in window)){b.textContent='此瀏覽器不支援朗讀';return;}speechSynthesis.cancel();const utterance=new SpeechSynthesisUtterance(b.dataset.speak);originalUtterance=utterance;utterance.lang='en-US';utterance.rate=.82;const voices=speechSynthesis.getVoices();const voice=voices.find(v=>v.lang==='en-US')||voices.find(v=>v.lang.startsWith('en'));if(voice)utterance.voice=voice;b.textContent='準備朗讀…';b.dataset.playback='requested';const reset=()=>{b.textContent='↻ 再次朗讀';b.dataset.playback='ended';if(originalUtterance===utterance)originalUtterance=null;};utterance.onstart=()=>{b.textContent='🔊 朗讀中';b.dataset.playback='speaking';};utterance.onend=reset;utterance.onerror=e=>{b.dataset.playback=e.error;b.textContent=e.error==='canceled'||e.error==='interrupted'?'▶ 英文朗讀':'朗讀未完成，請再試一次';if(originalUtterance===utterance)originalUtterance=null;};speechSynthesis.speak(utterance);});
@@ -96,7 +97,24 @@
   unitTab.addEventListener('click',()=>original.hidden=true);
   for(const id of ['q','wordLookup'])$(id).addEventListener('input',()=>original.hidden=true);
   $('unit').addEventListener('change',()=>original.hidden=true);
-  const directoryClick=unitTab.onclick;unitTab.onclick=()=>{directoryClick();directory.querySelectorAll('[data-exam-unit]').forEach(b=>{const button=document.createElement('button');button.type='button';button.textContent='原始考卷';button.onclick=e=>{e.stopPropagation();showOriginal(b.dataset.examUnit);};b.parentElement.append(button);});};
+  const directoryClick=unitTab.onclick;unitTab.onclick=()=>{directoryClick();directory.querySelectorAll('[data-exam-unit]').forEach(b=>{const button=document.createElement('button');button.type='button';button.textContent='原始考卷';button.onclick=e=>{e.stopPropagation();showOriginalPdf(b.dataset.examUnit);};b.parentElement.append(button);});};
+  const originalPdf=document.createElement('section');originalPdf.id='originalPdfView';originalPdf.hidden=true;document.querySelector('main').prepend(originalPdf);
+  const originalPdfTab=document.createElement('button');originalPdfTab.type='button';originalPdfTab.id='tabOriginalPdf';originalPdfTab.textContent='原始考卷 PDF';document.querySelector('.tabs').insertBefore(originalPdfTab,originalTab);
+  const originalFileUrl='https://drive.google.com/file/d/1hH6pfAK-vJ3qjc51iom30wtHNjcGbl_o/view';
+  function showOriginalPdf(id='1'){
+    directory.hidden=true;original.hidden=true;view.hidden=true;['wordView','exampleView','lookupResults'].forEach(id=>$(id).hidden=true);originalPdf.hidden=false;
+    if(!$('originalPdfFrame')){
+      originalPdf.innerHTML=`<div class="exam-panel original-pdf-panel"><div class="exam-heading"><h2>原始教用考卷 · VEE101T.pdf</h2><a href="${originalFileUrl}" target="_blank" rel="noopener">在 Drive 開啟／列印原檔 ↗</a></div><p class="exam-muted">直接呈現原 PDF 全部 130 頁，保留原來的版面、題號、選項、配合題、選擇題、拼字題，以及粉紅色答案與中文註記。原檔保留原有 Drive 存取權限。</p><div class="exam-settings"><label>65 單元原卷頁碼<select id="originalPdfUnit">${data.units.map(u=>`<option value="${u.id}">Level ${u.id<=21?'III':u.id<=42?'IV':'V'} · ${esc(u.title)}</option>`).join('')}</select></label><div><p id="originalPdfPages" role="status"></p><button type="button" id="originalPdfBilingual">查看此單元中英對照與英文朗讀</button></div></div><p class="exam-muted" id="originalPdfHelp">請在下方 PDF 檢視器的頁碼欄輸入所選單元的起始頁碼。若內嵌預覽無法載入，請用上方連結登入有權限的 Google 帳號查看原檔。</p><iframe id="originalPdfFrame" title="VEE101T 原始教用考卷 PDF，共130頁" src="https://drive.google.com/file/d/1hH6pfAK-vJ3qjc51iom30wtHNjcGbl_o/preview" allow="fullscreen" allowfullscreen></iframe></div>`;
+      $('originalPdfUnit').onchange=updateOriginalPdfPages;
+      $('originalPdfBilingual').onclick=()=>{const id=$('originalPdfUnit').value;originalPdf.hidden=true;showOriginal(id);document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('active',b===originalTab));};
+    }
+    $('originalPdfUnit').value=String(id);updateOriginalPdfPages();document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('active',b===originalPdfTab));
+  }
+  function updateOriginalPdfPages(){const id=Number($('originalPdfUnit').value);$('originalPdfPages').textContent=`原 PDF 第 ${id*2-1}–${id*2} 頁（共 130 頁）`;}
+  originalPdfTab.onclick=()=>showOriginalPdf($('unit').value==='all'?'1':$('unit').value);
+  document.querySelector('.tabs').addEventListener('click',e=>{if(e.target.closest('button')!==originalPdfTab)originalPdf.hidden=true;});
+  for(const id of ['q','wordLookup'])$(id).addEventListener('input',()=>originalPdf.hidden=true);
+  $('unit').addEventListener('change',()=>originalPdf.hidden=true);
   document.querySelector('.tabs').addEventListener('click',e=>{const b=e.target.closest('button');if(b)document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('active',x===b));});
   unitTab.click();
 })();
